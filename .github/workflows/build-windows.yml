@@ -55,8 +55,11 @@ jobs:
       - name: Tests
         run: npm test
 
+      # tauri.conf.json bundles coucou-hook.exe, so it must exist before any build.
       - name: Rust i18n tests
-        run: cargo test -p coucou --lib i18n
+        run: |
+          cargo build --release -p coucou-hook
+          cargo test -p coucou --lib i18n
 
       - name: Build and pack the installer
         id: pack
