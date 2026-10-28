@@ -1,0 +1,74 @@
+name: Windows o‘rnatuvchisini yig‘ish
+
+# Coucou for Windows’ning o‘zbekcha versiyasini Windows serverida yig‘adi va
+# tayyor setup.exe ni shu ishga (Actions → Artifacts) biriktiradi.
+# Hech qanday ommaviy reliz e’lon qilinmaydi.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'windows/**'
+      - 'NotchBuddy/Resources/sounds/**'
+      - '.github/workflows/build-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: windows/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            windows/target
+          key: windows-uz-cargo-${{ hashFiles('windows/Cargo.lock') }}
+          restore-keys: windows-uz-cargo-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Tests
+        run: npm test
+
+      - name: Rust i18n tests
+        run: cargo test -p coucou --lib i18n
+
+      - name: Build and pack the installer
+        id: pack
+        shell: pwsh
+        run: |
+          npm run pack
+          $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Get-ChildItem release | Format-Table Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Coucou-Uzbek-${{ steps.pack.outputs.version }}-setup
+          path: windows/release/Coucou-Uzbek-${{ steps.pack.outputs.version }}-setup.exe
+          retention-days: 7
