@@ -11,3 +11,7 @@ src-tauri/gen/schemas/
 .env
 .env.*
 !.env.example
+
+# The Uzbek voice, put here by the build
+src-tauri/voices/uz/*.onnx
+src-tauri/voices/uz/tokens.txt

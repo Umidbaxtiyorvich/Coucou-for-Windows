@@ -15,6 +15,7 @@ import type { Island } from "./island";
 import { parseClaudePlan, restorePlanUsage } from "../core/plan";
 import { setClaudePlanUsage, storedClaudePlanUsage } from "../views/usage";
 import { N_, t } from "../i18n/i18n";
+import { Talk } from "./talk";
 
 const CLAUDE_ID = "integration_claude";
 const CURSOR_ID = "agent_cursor";
@@ -336,6 +337,7 @@ function handleHook(island: Island, payload: HookPayload) {
       }
       surface("overview", false);
       Sound.play("work");
+      Talk.started(agentId);
       break;
 
     case "UserPromptSubmit": {
@@ -360,6 +362,7 @@ function handleHook(island: Island, payload: HookPayload) {
         State.updateTask(agentId, "question");
         State.appendStep(agentId, stepLabel(tool, payload.tool_input ?? {}));
         Sound.play("question");
+        Talk.question(agentId);
         surface("overview", true);
       } else {
         State.updateTask(agentId, "working");
@@ -398,6 +401,7 @@ function handleHook(island: Island, payload: HookPayload) {
         supersedeStop();
         State.updateTask(agentId, "ratelimit");
         Sound.play("rate");
+        Talk.rateLimited(agentId);
       } else if (message.endsWith("?")) {
         supersedeStop();
         State.updateTask(agentId, "question");
@@ -419,6 +423,7 @@ function handleHook(island: Island, payload: HookPayload) {
         if (t) t.finalLine = finalText;
       }
       Sound.play("finish");
+      Talk.finished(agentId);
       // A card waiting for an answer is never covered by another alert.
       if (focused && !State.pendingApproval) surface("finished", true);
       else State.setPillBadge(agentId, "finished");
@@ -449,6 +454,7 @@ function handleHook(island: Island, payload: HookPayload) {
       supersedeStop();
       State.updateTask(agentId, "error");
       Sound.play("error");
+      Talk.failed(agentId);
       if (focused && !State.pendingApproval) surface("error", true);
       else State.setPillBadge(agentId, "error");
       break;
@@ -517,6 +523,8 @@ function handleHook(island: Island, payload: HookPayload) {
       if (requestId) void Bridge.approvalAck(requestId);
       State.updateTask(agentId, view);
       Sound.play(view);
+      if (view === "question") Talk.question(agentId);
+      else Talk.approval(agentId);
       // Any agent's card (Claude Code, Codex, Copilot CLI, Muse Code) comes up
       // the same way: beginApproval brought its pill to the front.
       island.alert(view);

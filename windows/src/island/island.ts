@@ -28,6 +28,7 @@ import { DesktopLink } from "./desktop";
 import type { ViewCommand } from "./shortcuts";
 import { DRAG_THRESHOLD } from "../mochi/desktop-logic";
 import { Updates } from "./update";
+import { Talk } from "./talk";
 import { UPDATE_BLUE, showsUpdateHint } from "../whats-new/whats-new";
 
 const BOT_OVERHANG = 40;
@@ -356,6 +357,7 @@ export class Island {
           break;
         case "home":
           this.expand(this.openingView());
+          Talk.opened();
           if (!this.wasInIsland) this.fsm.mouseLeft();
           // Hooks may have been installed in a terminal since: the idle cards
           // say so on the next open, without polling while the island is shut.
@@ -364,6 +366,8 @@ export class Island {
         case "coucou":
           this.expand("greeting");
           this.greeting.start();
+          // Mochi has popped out by then: he says hello.
+          window.setTimeout(() => Talk.launch(), 1400);
           break;
       }
       State.notify();
@@ -625,6 +629,7 @@ export class Island {
 
     this.engine.gulp();
     Sound.play("approve");
+    Talk.fileDropped();
     this.engine.triggerEmote("happy");
     this.engine.animateMorph(0);
 
@@ -970,6 +975,7 @@ export class Island {
     State.stateOverride = "dizzy";
     this.engine.setState("dizzy");
     Sound.play("dizzy");
+    Talk.poked();
     this.alert("confused");
     if (this.confusedRecovery != null) window.clearTimeout(this.confusedRecovery);
     this.confusedRecovery = window.setTimeout(() => {

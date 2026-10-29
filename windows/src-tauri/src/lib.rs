@@ -35,6 +35,7 @@ mod speech;
 mod spotify;
 mod tray;
 mod update;
+mod uzvoice;
 mod voice;
 #[cfg(windows)]
 mod webview_drop;
@@ -957,6 +958,8 @@ pub fn run() {
             notes::notes_export,
             voice::voice_done,
             voice::voice_say_native,
+            uzvoice::uz_say,
+            uzvoice::uz_voice_ready,
             update::update_status,
             update::update_set_consent,
             update::update_check,

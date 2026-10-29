@@ -51,7 +51,8 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../target/release/coucou-hook.exe": "coucou-hook.exe"
+      "../target/release/coucou-hook.exe": "coucou-hook.exe",
+      "voices/**/*": "voices/"
     },
     "copyright": "© Louis Raille",
     "category": "DeveloperTool",

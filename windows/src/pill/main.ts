@@ -10,7 +10,8 @@ import { Bridge, onEvent } from "../core/bridge";
 import { FlowBridge, clock, type PillState } from "../core/flow";
 import type { Settings } from "../core/state";
 import { BotEngine, hexToRGB } from "../mochi/engine";
-import { resolveLanguage, setLanguage, systemLanguages, t } from "../i18n/i18n";
+import { language, resolveLanguage, setLanguage, systemLanguages, t } from "../i18n/i18n";
+import { speakAndWait, uzVoiceOn } from "../core/uzvoice";
 import { HUB_ICONS, keyLabel } from "../hub/ui";
 
 const RESTING_LENGTH = 44;
@@ -478,7 +479,9 @@ async function say(s: Say) {
   speaking = true;
   wake();
   try {
-    if (!(s.audio && (await sayMp3(s.audio)))) await sayWithSystem(s.text, s.lang, s.gender);
+    // In Uzbek, Mochi's own robot voice; the system has no Uzbek voice.
+    const uzbek = language() === "uz" && uzVoiceOn() && (await speakAndWait(s.text));
+    if (!uzbek && !(s.audio && (await sayMp3(s.audio)))) await sayWithSystem(s.text, s.lang, s.gender);
   } finally {
     speaking = false;
     void FlowBridge.voiceDone(s.id);

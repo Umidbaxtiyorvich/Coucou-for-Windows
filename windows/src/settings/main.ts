@@ -13,6 +13,7 @@ import {
 import { DEFAULT_SETTINGS, type Settings } from "../core/state";
 import type { UpdateStatus } from "../core/update";
 import { SOUND_NAMES } from "../core/sound";
+import { setUzVoiceOn, speak, uzVoiceOn } from "../core/uzvoice";
 import {
   MAX_DECLARED, PILL_CATEGORIES, availablePills, chooseMainPill, isComingSoon, mainPillChoices,
   sanitizeDeclared, toggleDeclared, type PillDefinition,
@@ -988,6 +989,15 @@ function generalSection(): HTMLElement {
       volume,
     ),
     h("div", { class: "row" }, soundsFolder, reloadSounds, customCount),
+    h("div", { class: "row" },
+      h("label", { text: "Mochi o‘zbekcha gapiradi" }),
+      toggle(uzVoiceOn(), (v) => {
+        setUzVoiceOn(v);
+        if (v) speak("Salom! Endi men siz bilan gaplashaman.");
+      }),
+      h("button", { text: "Ovozni sinash", onclick: () => speak("Salom! Men Mochi. Sizga qanday yordam bera olaman?") }),
+    ),
+    h("div", { class: "hint", text: "Salomlashadi, agent ruxsat yoki savol so‘raganda, ish tugaganda va xato bo‘lganda robotcha ovozda aytadi. Ovoz shu kompyuterda yaratiladi, internet kerak emas. Tovushlar o‘chiq bo‘lsa, gapirmaydi." }),
     h("div", { class: "hint", text: t("Drop a file named like one of Mochi's sounds (finish.wav, approval.mp3, greet.m4a…) in the sounds folder to replace it, then Reload.") }),
     h("div", { class: "row" },
       h("label", { text: t("Open on hover") }),

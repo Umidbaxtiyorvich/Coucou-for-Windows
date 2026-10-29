@@ -6,6 +6,7 @@ import { onEvent, Bridge, type IntegrationUpdate } from "../core/bridge";
 import { gitHubAlert, type GitHubEvent } from "../core/github";
 import { availablePills } from "../core/pills";
 import { Sound } from "../core/sound";
+import { Talk } from "./talk";
 import { State } from "../core/state";
 import type { Island } from "./island";
 
@@ -112,6 +113,7 @@ function handle(island: Island, update: IntegrationUpdate) {
         task.pillBadge = event.success ? "finished" : "error";
       }
       Sound.play(event.success ? "finish" : "error");
+      Talk.integration(task.name, event.success);
       // Same as the Swift pollers: show the compact island so the badge is seen,
       // but never steal the screen for a successful deploy.
       island.reveal();

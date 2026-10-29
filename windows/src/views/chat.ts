@@ -14,6 +14,7 @@ import {
   activeModel, pickModel, providerDef, visibleProviders, withModel, type ProviderDef,
 } from "../core/providers";
 import { Sound } from "../core/sound";
+import { Talk } from "../island/talk";
 import { State, type ChatMessage } from "../core/state";
 import type { ViewHost } from "./views";
 import { N_, t, tl } from "../i18n/i18n";
@@ -287,11 +288,13 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       State.chatHistory.push({ id: nextId++, role: "assistant", content: reply.text });
       State.stateOverride = null;
       Sound.play("finish");
+      Talk.chatReply();
     } catch (err) {
       State.stateOverride = null;
       State.noteMessage = String(err).replace(/^Error:\s*/, "");
       State.view = "note";
       Sound.play("error");
+      Talk.chatFailed();
     } finally {
       sending = false;
       live = null;
