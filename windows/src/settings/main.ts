@@ -4,6 +4,7 @@
 // island's settings are drawn here, one Notch page at a time.
 
 import "./settings.css";
+import { invoke } from "@tauri-apps/api/core";
 import { Bridge, onEvent, type HookPreview, type HookStatus, type ShortcutsReport } from "../core/bridge";
 import { CUSTOM_SERVER_KEY, providerDef, urlExposure } from "../core/providers";
 import {
@@ -599,6 +600,57 @@ function chatProvidersSection(
     h("h2", {}, h("span", { text: CHAT_STRINGS.providersTitle })),
     h("div", { class: "hint", text: CHAT_STRINGS.providersHint }),
     list,
+  );
+}
+
+// ── Memory section ────────────────────────────────────────────────────────────
+
+/**
+ * Settings → Chat → «Xotira»: what Mochi knows about the user, typed here,
+ * pasted from ChatGPT's memory or read from a text file. memory.rs keeps it
+ * and adds it to every provider's system prompt.
+ */
+function memorySection(): HTMLElement {
+  const area = h("textarea", {
+    rows: "8",
+    placeholder: "Masalan: Ismim Umidjon. Toshkentda yashayman. Dasturlash va Instagram bilan shug‘ullanaman. Menga o‘zbek tilida, qisqa va aniq javob ber.",
+    style: "width:100%;box-sizing:border-box;resize:vertical;font:inherit;padding:8px;border-radius:8px",
+  }) as HTMLTextAreaElement;
+  const status = h("span", { class: "hint" });
+  const show = (text: string) => { status.textContent = text; };
+  void invoke<string>("memory_get").then((text) => { area.value = text ?? ""; }).catch(() => {});
+  const save = () => {
+    void invoke<number>("memory_set", { text: area.value })
+      .then((n) => show(n > 0 ? `Saqlandi · ${n} belgi. Mochi endi buni har bir suhbatda hisobga oladi.` : "Xotira tozalandi."))
+      .catch((e) => show(`Saqlab bo‘lmadi: ${String(e)}`));
+  };
+  const file = h("input", { type: "file", accept: ".txt,.md,.json,text/plain", style: "display:none" }) as HTMLInputElement;
+  file.addEventListener("change", () => {
+    const f = file.files?.[0];
+    if (!f) return;
+    if (f.size > 2_000_000) {
+      show("Fayl juda katta. ChatGPT xotirasining matnini nusxalab, shu yerga joylang.");
+      return;
+    }
+    void f.text().then((text) => {
+      area.value = (area.value.trim() ? area.value.trim() + "\n\n" : "") + text.trim();
+      show(`«${f.name}» qo‘shildi — «Saqlash» ni bosing.`);
+    });
+    file.value = "";
+  });
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Xotira (men haqimda)" })),
+    h("div", { class: "hint", text: "Mochi sizni tanishi uchun o‘zingiz haqingizda yozing yoki ChatGPT xotirasini shu yerga joylang. ChatGPT’da: Sozlamalar → Personalizatsiya → Xotira → Boshqarish — yozuvlarni nusxalang. Yoki ChatGPT’dan «Men haqimda eslab qolgan hamma narsani ro‘yxat qilib yoz» deb so‘rab, javobni joylang. Bu matn kompyuteringizda saqlanadi va har bir xabar bilan siz tanlagan provayderga (ChatGPT, Claude…) yuboriladi." }),
+    area,
+    h("div", { class: "row" },
+      h("button", { text: "Saqlash", onclick: save }),
+      h("button", { text: "Fayldan qo‘shish…", onclick: () => file.click() }),
+      h("button", { text: "Tozalash", onclick: () => { area.value = ""; save(); } }),
+      file,
+    ),
+    status,
   );
 }
 
@@ -1409,7 +1461,7 @@ async function render() {
     general: () => [generalSection()],
     pills: () => [activePillsSection(connected)],
     agents: () => [claudeSection(status), agentsSection(agents), planSection(status)],
-    chat: () => [apiSection(hasKey), chatProvidersSection(chatKeys, keyChanged), localSection(customKey)],
+    chat: () => [apiSection(hasKey), chatProvidersSection(chatKeys, keyChanged), memorySection(), localSection(customKey)],
     integrations: () => [integrationsSection(present), ...whatsappSections()],
     phone: () => [phoneSection(settings.phoneLink ?? false, toggle, settings)],
     shortcuts: () => [shortcutsSection(shortcutReport)],

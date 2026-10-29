@@ -216,12 +216,18 @@ async fn call_with_timeout(endpoint: &Url, key: &str, body: &Value, timeout: Dur
     let status = response.status();
     if !status.is_success() {
         // Surface the API's own message, which is what makes a bad key obvious.
+        if status.as_u16() == 401 {
+            return Err(t(BAD_KEY));
+        }
         let body = net::read_capped(response, net::MAX_ERROR_BODY).await.unwrap_or_default();
         return Err(format!("Claude API {status}: {}", net::error_detail(&body)));
     }
     let bytes = net::read_capped(response, net::MAX_BODY).await?;
     serde_json::from_slice(&bytes).map_err(|e| tf("Bad API response: {error}", &[("error", &e.to_string())]))
 }
+
+/// A key Anthropic refuses: what to do about it, rather than "401 invalid x-api-key".
+const BAD_KEY: &str = "The Claude key is not valid. Replace it in Notch → Chat, or pick another provider (OpenAI, Google AI…) above the chat box.";
 
 /// The models on the user's Anthropic account, newest first, as the API lists them.
 pub async fn models(key: &str) -> Result<Vec<ModelInfo>, String> {
@@ -235,6 +241,9 @@ pub async fn models(key: &str) -> Result<Vec<ModelInfo>, String> {
         .map_err(|e| tf("Network error: {error}", &[("error", &e.to_string())]))?;
     let status = response.status();
     if !status.is_success() {
+        if status.as_u16() == 401 {
+            return Err(t(BAD_KEY));
+        }
         let body = net::read_capped(response, net::MAX_ERROR_BODY).await.unwrap_or_default();
         return Err(format!("Claude API {status}: {}", net::error_detail(&body)));
     }

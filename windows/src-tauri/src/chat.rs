@@ -115,7 +115,8 @@ impl Chat {
 /// has one worth using (identity.rs), and only claims web search where the
 /// provider runs it (Claude).
 pub fn system_prompt(web_search: bool) -> String {
-    system_prompt_for(crate::identity::first_name(), web_search)
+    // What the user told Mochi about themselves (memory.rs), for every provider.
+    system_prompt_for(crate::identity::first_name(), web_search) + &crate::memory::prompt_block(&crate::memory::read())
 }
 
 fn system_prompt_for(first_name: Option<&str>, web_search: bool) -> String {

@@ -17,6 +17,7 @@ mod integrations;
 mod island;
 mod local_chat;
 mod log;
+mod memory;
 mod net;
 mod notes;
 mod openai_compat;
@@ -959,6 +960,8 @@ pub fn run() {
             voice::voice_done,
             voice::voice_say_native,
             uzvoice::uz_say,
+            memory::memory_get,
+            memory::memory_set,
             uzvoice::uz_voice_ready,
             update::update_status,
             update::update_set_consent,

@@ -111,7 +111,7 @@ impl Brain {
         self.messages.push(json!({ "role": "user", "content": transcript }));
         self.trim();
         let pills = super::ask_island(app, "pills", json!({ "action": "list" })).unwrap_or_default();
-        let system = system_prompt(&pills);
+        let system = system_prompt(&pills) + &crate::memory::prompt_block(&crate::memory::read());
         let tools = tools();
         let chat_model = app
             .try_state::<crate::Shared>()

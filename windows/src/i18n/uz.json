@@ -1208,6 +1208,7 @@
     "The access key is 43 characters of letters, digits, - and _": "Kirish kaliti harflar, raqamlar, - va _ dan iborat 43 ta belgidan tashkil topgan",
     "Enter the relay address first": "Avval relay manzilini kiriting",
     "Enter the relay's access key first": "Avval relay kirish kalitini kiriting",
-    "Windows refused the keystrokes": "Windows tugma bosishlarini rad etdi"
+    "Windows refused the keystrokes": "Windows tugma bosishlarini rad etdi",
+    "The Claude key is not valid. Replace it in Notch → Chat, or pick another provider (OpenAI, Google AI…) above the chat box.": "Claude kaliti yaroqsiz. Uni Notch → Chat bo‘limida almashtiring yoki chat oynasi ustidan boshqa provayderni (OpenAI, Google AI…) tanlang."
   }
 }

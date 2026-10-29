@@ -111,6 +111,7 @@ jobs:
           cargo build --release -p coucou-hook
           cargo test -p coucou --lib i18n
           cargo test -p coucou --lib uzvoice
+          cargo test -p coucou --lib memory
 
       - name: Build and pack the installer
         id: pack
