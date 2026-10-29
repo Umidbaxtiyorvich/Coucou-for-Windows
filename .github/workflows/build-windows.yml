@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   # Mochi's Uzbek voice (windows/scripts/uz-voice): Meta's MMS model turned into
@@ -125,4 +125,26 @@ jobs:
         with:
           name: Coucou-Uzbek-${{ steps.pack.outputs.version }}-setup
           path: windows/release/Coucou-Uzbek-${{ steps.pack.outputs.version }}-setup.exe
-          retention-days: 7
+          retention-days: ${{ github.event.repository.private && 90 || 7 }}
+
+      # A link that never expires: the "uzbek-latest" release, always the newest
+      # setup.exe. Only while the repository is private — Coucou's name, Mochi,
+      # the icon and the sounds may not be published (LICENSE-ASSETS.md).
+      - name: Update the uzbek-latest release (private repository only)
+        if: github.event.repository.private
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $v = "${{ steps.pack.outputs.version }}"
+          $file = "release/Coucou-Uzbek-setup.exe"
+          $notes = "Coucou for Windows $v, o‘zbekcha. Har doim eng so‘nggi yig‘ilgan versiya. setup.exe ni yuklab olib ishga tushiring; Windows ogohlantirsa: Batafsil → Baribir ishga tushirish."
+          gh release view uzbek-latest *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload uzbek-latest $file --clobber
+            gh release edit uzbek-latest --notes $notes
+          } else {
+            gh release create uzbek-latest $file --target "${{ github.sha }}" --title "Coucou o‘zbekcha (eng so‘nggi)" --notes $notes
+          }
+          "Doimiy havola: https://github.com/${{ github.repository }}/releases/download/uzbek-latest/Coucou-Uzbek-setup.exe"
