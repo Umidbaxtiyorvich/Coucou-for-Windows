@@ -18,7 +18,7 @@ class TranslationsTest {
     private val categories = mapOf(
         "fr" to listOf("one", "many", "other"), "es" to listOf("one", "many", "other"), "pt-BR" to listOf("one", "many", "other"),
         "zh-Hans" to listOf("other"), "hi" to listOf("one", "other"), "bn" to listOf("one", "other"),
-        "ru" to listOf("one", "few", "many", "other"), "id" to listOf("other"), "ar" to listOf("zero", "one", "two", "few", "many", "other"),
+        "ru" to listOf("one", "few", "many", "other"), "id" to listOf("other"), "uz" to listOf("one", "other"), "ar" to listOf("zero", "one", "two", "few", "many", "other"),
     )
 
     @Test fun thereIsAtLeastOneLanguage() = assertTrue(files.isNotEmpty())
@@ -56,6 +56,8 @@ class TranslationsTest {
             "wardrobe_auto_tag", "usage_pct", "tool_a_file", "widget_mochi_description", "widget_sample_two_waiting",
             // The same word in the language (French "Licences", "Services", "Standard").
             "licences_title", "services_title", "vibration_standard", "recap_sessions",
+            // Uzbek keeps the chat's name as it is.
+            "share_label",
         )
         for (f in files) {
             val t = JSONObject(f.readText()).getJSONObject("strings")
