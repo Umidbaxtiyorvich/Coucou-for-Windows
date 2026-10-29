@@ -127,8 +127,61 @@ pub fn number_words(n: u64) -> String {
     out.join(" ")
 }
 
+/// Uzbek Latin (lower case) in Cyrillic, for a model that learned Cyrillic:
+/// "o‘zbekcha" → "ўзбекча". Foreign words get their nearest letters.
+pub fn to_cyrillic(text: &str) -> String {
+    let cs: Vec<char> = text.chars().collect();
+    let apostrophe = |c: char| matches!(c, '\'' | 'ʻ' | '‘' | '’' | 'ʼ' | '`');
+    let mut out = String::new();
+    let mut i = 0;
+    while i < cs.len() {
+        let c = cs[i];
+        let next = cs.get(i + 1).copied();
+        let word_start = i == 0 || !cs[i - 1].is_alphabetic();
+        let two = |s: &str| {
+            let mut it = s.chars();
+            Some(c) == it.next() && next == it.next()
+        };
+        let (piece, used) = if (c == 'o' || c == 'g') && next.is_some_and(apostrophe) {
+            (if c == 'o' { "ў" } else { "ғ" }, 2)
+        } else if two("sh") {
+            ("ш", 2)
+        } else if two("ch") {
+            ("ч", 2)
+        } else if two("yo") {
+            ("ё", 2)
+        } else if two("yu") {
+            ("ю", 2)
+        } else if two("ya") {
+            ("я", 2)
+        } else if two("ye") {
+            ("е", 2)
+        } else {
+            let one = match c {
+                'a' => "а", 'b' => "б", 'c' => "к", 'd' => "д",
+                'e' => if word_start { "э" } else { "е" },
+                'f' => "ф", 'g' => "г", 'h' => "ҳ", 'i' => "и", 'j' => "ж", 'k' => "к", 'l' => "л",
+                'm' => "м", 'n' => "н", 'o' => "о", 'p' => "п", 'q' => "қ", 'r' => "р", 's' => "с",
+                't' => "т", 'u' => "у", 'v' => "в", 'w' => "в", 'x' => "х", 'y' => "й", 'z' => "з",
+                c if apostrophe(c) => "ъ",
+                _ => "",
+            };
+            if one.is_empty() {
+                out.push(c);
+                i += 1;
+                continue;
+            }
+            (one, 1)
+        };
+        out.push_str(piece);
+        i += used;
+    }
+    out
+}
+
 /// What the model can read: lower case, numbers in words, Uzbek's ‘ and ’
-/// written the way the model learned them, and anything it has no letter for
+/// written the way the model learned them (or the whole text in Cyrillic
+/// when that is the script it learned), and anything it has no letter for
 /// turned into a pause.
 pub fn normalize(text: &str, chars: &HashSet<char>) -> String {
     // The model's own apostrophe, whichever of the usual ones it has.
@@ -163,8 +216,12 @@ pub fn normalize(text: &str, chars: &HashSet<char>) -> String {
     }
     flush(&mut digits, &mut spelled);
 
+    let mut lower = spelled.to_lowercase();
+    if chars.contains(&'а') && !chars.contains(&'a') {
+        lower = to_cyrillic(&lower);
+    }
     let mut out = String::new();
-    for c in spelled.to_lowercase().chars() {
+    for c in lower.chars() {
         let c = match c {
             'ʻ' | '‘' | '’' | 'ʼ' | '`' | '\'' => match apostrophe {
                 Some(a) => a,
@@ -294,6 +351,15 @@ mod tests {
         assert_eq!(normalize("50%", &chars), "ellik foiz");
         assert_eq!(normalize("Café", &chars), "cafe");
         assert_eq!(normalize("✓ ~/.claude", &chars), ".claude");
+    }
+
+    #[test]
+    fn writes_cyrillic_for_a_cyrillic_model() {
+        assert_eq!(to_cyrillic("o‘zbekcha"), "ўзбекча");
+        assert_eq!(to_cyrillic("salom! qanday yordam bera olaman?"), "салом! қандай ёрдам бера оламан?");
+        assert_eq!(to_cyrillic("g‘alaba, shahar, choy, ma’no, ekran"), "ғалаба, шаҳар, чой, маъно, экран");
+        let chars = token_chars("  0\nа 1\nб 2\nс 3\nл 4\nо 5\nм 6\nў 7\nз 8\nе 9\nк 10\nч 11\n! 12\n");
+        assert_eq!(normalize("Salom! O‘zbekcha", &chars), "салом! ўзбекча");
     }
 
     #[test]

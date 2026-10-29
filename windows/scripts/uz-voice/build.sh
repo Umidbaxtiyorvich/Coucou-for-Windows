@@ -11,11 +11,14 @@ work="$(mktemp -d)"
 cd "$work"
 
 # The Uzbek folders the repository has (uzb-…, uzn-…), Latin script first.
-curl -fsSL "https://huggingface.co/api/models/facebook/mms-tts/tree/main/models" -o models.json
+python -m pip install -q huggingface_hub
 python - <<'PY' > uzbek.txt
-import json
-names = [e["path"].split("/", 1)[1] for e in json.load(open("models.json")) if e.get("type") == "directory"]
+from huggingface_hub import HfApi
+api = HfApi()
+names = [e.path.split("/", 1)[1] for e in api.list_repo_tree("facebook/mms-tts", path_in_repo="models")]
 uz = [n for n in names if n.startswith(("uzb", "uzn", "uzs"))]
+import sys
+print("all folders:", len(names), file=sys.stderr)
 print("\n".join(sorted(uz, key=lambda n: ("cyrillic" in n, "latin" not in n, n))))
 PY
 echo "Uzbek models on Hugging Face:"; cat uzbek.txt

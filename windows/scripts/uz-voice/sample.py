@@ -10,9 +10,17 @@ d = sys.argv[1]
 tokens = {line.rsplit(" ", 1)[0] for line in open(f"{d}/tokens.txt", encoding="utf-8") if " " in line}
 apos = next((c for c in ["'", "ʻ", "‘", "’", "ʼ"] if c in tokens), "")
 text = "Salom! Xayrli kun! Men Mochi. Sizga qanday yordam bera olaman? Claude Code ishni tugatdi. To‘g‘ri, o‘zbekcha gapiraman."
-for c in "ʻ‘’ʼ'":
-    text = text.replace(c, apos)
 text = text.lower()
+if "а" in tokens and "a" not in tokens:
+    # A Cyrillic model: the same rules as to_cyrillic in src-tauri/src/uzvoice.rs.
+    for a_, b_ in [("o‘", "ў"), ("g‘", "ғ"), ("sh", "ш"), ("ch", "ч"), ("yo", "ё"), ("yu", "ю"), ("ya", "я"), ("ye", "е")]:
+        text = text.replace(a_, b_)
+    table = dict(zip("abcdefghijklmnopqrstuvwxyz", "абкдефгҳижклмнопқрстуввхйз"))
+    text = "".join(table.get(c, c) for c in text).replace("’", "ъ")
+else:
+    for c in "ʻ‘’ʼ'":
+        text = text.replace(c, apos)
+print("text", text)
 
 tts = sherpa_onnx.OfflineTts(sherpa_onnx.OfflineTtsConfig(
     model=sherpa_onnx.OfflineTtsModelConfig(
