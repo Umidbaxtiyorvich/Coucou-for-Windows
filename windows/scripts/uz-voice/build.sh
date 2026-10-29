@@ -10,7 +10,19 @@ out="$(mkdir -p "${1:-out}" && cd "${1:-out}" && pwd)"
 work="$(mktemp -d)"
 cd "$work"
 
-export language=uzb-script_latin
+# The Uzbek folders the repository has (uzb-…, uzn-…), Latin script first.
+curl -fsSL "https://huggingface.co/api/models/facebook/mms-tts/tree/main/models" -o models.json
+python - <<'PY' > uzbek.txt
+import json
+names = [e["path"].split("/", 1)[1] for e in json.load(open("models.json")) if e.get("type") == "directory"]
+uz = [n for n in names if n.startswith(("uzb", "uzn", "uzs"))]
+print("\n".join(sorted(uz, key=lambda n: ("cyrillic" in n, "latin" not in n, n))))
+PY
+echo "Uzbek models on Hugging Face:"; cat uzbek.txt
+language="${UZ_MODEL:-$(head -n1 uzbek.txt)}"
+[ -n "$language" ] || { echo "no Uzbek model in facebook/mms-tts"; exit 1; }
+export language
+echo "Using models/$language"
 base=https://huggingface.co/facebook/mms-tts/resolve/main/models/$language
 curl -fsSL -o G_100000.pth "$base/G_100000.pth"
 curl -fsSL -o config.json "$base/config.json"
@@ -32,7 +44,7 @@ python "$here/export.py"
 
 cp model.onnx tokens.txt "$out/"
 cat > "$out/LICENSE.txt" <<TXT
-O‘zbekcha ovoz: Meta MMS text-to-speech (uzb-script_latin),
+O‘zbekcha ovoz: Meta MMS text-to-speech ($language),
 https://huggingface.co/facebook/mms-tts — CC BY-NC 4.0 (tijorat maqsadida emas).
 sherpa-onnx uchun ONNX ga o‘tkazilgan.
 TXT
