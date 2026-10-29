@@ -197,6 +197,15 @@ fn is_inside(dir: &std::path::Path, path: &std::path::Path) -> bool {
         && std::fs::symlink_metadata(&file).map(|m| m.is_file()).unwrap_or(false)
 }
 
+/// The provider that answers when Claude cannot: Google AI first (it has a free tier), then OpenAI, then
+/// OpenRouter — the first whose key is stored.
+pub fn fallback_provider(has_key: impl Fn(&str) -> bool) -> Option<&'static openai_compat::Provider> {
+    ["google", "openai", "openrouter"]
+        .into_iter()
+        .filter_map(openai_compat::provider)
+        .find(|p| has_key(p.key))
+}
+
 /// One chat turn with the provider chosen in the settings.
 pub async fn send(
     app: &AppHandle,
@@ -209,7 +218,21 @@ pub async fn send(
     let provider = settings.chat_provider.as_str();
     let model = model_for(settings, provider);
     if provider == ANTHROPIC || provider.is_empty() {
-        return claude::send(chat, &model, query, context).await;
+        // Claude has no key, or a key Anthropic refuses: the first other provider with a key answers instead,
+        // so a chat with a working Gemini or ChatGPT key never just fails.
+        let fallback = fallback_provider(|id| crate::secrets::present(id));
+        if !crate::secrets::present(claude::KEY) {
+            if let Some(p) = fallback {
+                return openai_compat::send(chat, p, &model_for(settings, p.id), query, context).await;
+            }
+        }
+        let answer = claude::send(chat, &model, query.clone(), context.clone()).await;
+        return match (answer, fallback) {
+            (Err(e), Some(p)) if e == crate::i18n::t(claude::BAD_KEY) => {
+                openai_compat::send(chat, p, &model_for(settings, p.id), query, context).await
+            }
+            (answer, _) => answer,
+        };
     }
     if let Some(p) = openai_compat::provider(provider) {
         return openai_compat::send(chat, p, &model, query, context).await;
@@ -264,6 +287,14 @@ pub async fn models(settings: &Settings, provider: &str) -> Result<Vec<ModelInfo
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_fallback_is_google_then_openai_then_openrouter() {
+        let pick = |keys: &[&str]| fallback_provider(|k| keys.contains(&k)).map(|p| p.id);
+        assert_eq!(pick(&[]), None);
+        assert_eq!(pick(&["openrouter-api-key", "openai-api-key"]), Some("openai"));
+        assert_eq!(pick(&["openai-api-key", "google-api-key"]), Some("google"));
+    }
+
     use super::*;
 
     fn turn_texts(history: &[Value]) -> Vec<(String, Value)> {

@@ -227,7 +227,7 @@ async fn call_with_timeout(endpoint: &Url, key: &str, body: &Value, timeout: Dur
 }
 
 /// A key Anthropic refuses: what to do about it, rather than "401 invalid x-api-key".
-const BAD_KEY: &str = "The Claude key is not valid. Replace it in Notch → Chat, or pick another provider (OpenAI, Google AI…) above the chat box.";
+pub const BAD_KEY: &str = "The Claude key is not valid. Replace it in Notch → Chat, or pick another provider (OpenAI, Google AI…) above the chat box.";
 
 /// The models on the user's Anthropic account, newest first, as the API lists them.
 pub async fn models(key: &str) -> Result<Vec<ModelInfo>, String> {

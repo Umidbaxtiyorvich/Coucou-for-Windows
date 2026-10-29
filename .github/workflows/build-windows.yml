@@ -112,6 +112,7 @@ jobs:
           cargo test -p coucou --lib i18n
           cargo test -p coucou --lib uzvoice
           cargo test -p coucou --lib memory
+          cargo test -p coucou --lib chat::
 
       - name: Build and pack the installer
         id: pack
