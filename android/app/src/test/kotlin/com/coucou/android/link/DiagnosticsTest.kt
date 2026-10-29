@@ -116,12 +116,12 @@ class DiagnosticsTest {
         val p = pairing(d, host = "192.168.1.20")
         val fakeAddress = Diagnostics.maskHost(p.host)
         assertEquals("192.168.x.x", fakeAddress)
-        assertEquals("a name (hidden)", Diagnostics.maskHost("my-pc.local"))
+        assertEquals("nom (yashirilgan)", Diagnostics.maskHost("my-pc.local"))
         val results = Diagnostics.run(env(p.copy(host = "127.0.0.1")).also { }, { _, _ -> })
         val text = Diagnostics.report("0.1.0", "13", "SM-A127F", results, fakeAddress, "relay")
         for (secret in listOf(token, p.certSha256, p.desktopName, "192.168.1.20", "127.0.0.1")) assertFalse("report mentions $secret", text.contains(secret))
         assertTrue(text.startsWith("Coucou for Android 0.1.0 · Android 13 · SM-A127F"))
-        assertTrue(text.contains("Computer: 192.168.x.x · connected via: relay"))
+        assertTrue(text.contains("Kompyuter: 192.168.x.x · ulanish: relay"))
         assertTrue(text.lines().drop(2).all { it.startsWith("OK ") || it.startsWith("PROBLEM ") || it.startsWith("SKIPPED ") })
     }
 
