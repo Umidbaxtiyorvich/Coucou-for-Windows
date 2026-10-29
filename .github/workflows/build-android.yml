@@ -1,0 +1,92 @@
+name: Android ilovasini yig‘ish
+
+# Coucou for Android’ning o‘zbekcha versiyasini yig‘adi: testlar, imzolangan
+# release APK va uni shu ishga (Actions → Artifacts) biriktiradi. Imzo kaliti
+# repozitoriyda emas: birinchi yig‘ishda yaratiladi va Actions keshida turadi
+# (faqat shu repozitoriy ishlari ko‘radi), shuning uchun keyingi APK’lar
+# eskisining ustiga o‘rnatiladi. Kesh 7 kun ishlatilmasa o‘chadi; unda yangi
+# kalit yaratiladi va ilovani bir marta o‘chirib qayta o‘rnatish kerak bo‘ladi. Repozitoriy yopiq bo‘lsa, «uzbek-latest» relizga ham
+# qo‘yadi — doimiy havola.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Signing key (kept in the Actions cache, never in git)
+        uses: actions/cache@v4
+        with:
+          path: ~/coucou-signing
+          key: coucou-android-signing-v1
+
+      - name: Make the signing key on the first build
+        run: |
+          dir=~/coucou-signing
+          if [ ! -f "$dir/coucou-uz.jks" ]; then
+            mkdir -p "$dir"
+            pass=$(openssl rand -hex 24)
+            keytool -genkeypair -keystore "$dir/coucou-uz.jks" -storetype PKCS12 -alias coucou-uz -keyalg RSA -keysize 2048 \
+              -validity 36500 -storepass "$pass" -keypass "$pass" -dname "CN=Coucou Uzbek build" > /dev/null
+            printf '%s' "$pass" > "$dir/password"
+            echo "A new signing key was made."
+          fi
+          echo "::add-mask::$(cat "$dir/password")"
+          echo "COUCOU_KEYSTORE_FILE=$dir/coucou-uz.jks" >> "$GITHUB_ENV"
+          echo "COUCOU_KEYSTORE_PASSWORD=$(cat "$dir/password")" >> "$GITHUB_ENV"
+          echo "COUCOU_KEY_ALIAS=coucou-uz" >> "$GITHUB_ENV"
+
+      - name: Strings are up to date
+        run: node scripts/gen-strings.mjs --check
+
+      - name: Tests and the signed release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew test assembleRelease --console=plain
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk out/Coucou-Android-Uzbek.apk
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Coucou-Android-Uzbek-apk
+          path: android/out/Coucou-Android-Uzbek.apk
+          retention-days: ${{ github.event.repository.private && 90 || 7 }}
+
+      - name: Update the uzbek-latest release (private repository only)
+        if: github.event.repository.private
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view uzbek-latest > /dev/null 2>&1; then
+            gh release upload uzbek-latest out/Coucou-Android-Uzbek.apk --clobber
+          else
+            gh release create uzbek-latest out/Coucou-Android-Uzbek.apk --target "${{ github.sha }}" \
+              --title "Coucou o‘zbekcha (eng so‘nggi)" --notes "Har doim eng so‘nggi yig‘ilgan versiya."
+          fi
+          echo "Doimiy havola: https://github.com/${{ github.repository }}/releases/download/uzbek-latest/Coucou-Android-Uzbek.apk"

@@ -1,0 +1,83 @@
+name: Relay’ni Cloudflare’ga joylash
+
+# Telefon kompyuterga istalgan tarmoqdan (mobil internet, boshqa Wi-Fi)
+# ulanishi uchun relay’ni SIZNING bepul Cloudflare hisobingizga joylaydi
+# (android/relay, docs: android/relay/README.md). Qo‘lda ishga tushiriladi:
+# Actions → «Relay’ni Cloudflare’ga joylash» → Run workflow.
+#
+# Kerakli secret’lar (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   — «Edit Cloudflare Workers» shablonidagi token
+#   CLOUDFLARE_ACCOUNT_ID  — Cloudflare hisob ID si
+#   RELAY_ACCESS_KEY       — o‘zingiz yaratgan 43 belgili kirish kaliti
+# Relay xabarlarni o‘qiy olmaydi: hammasi uchidan-uchigacha shifrlangan.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: android/relay
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check the secrets
+        env:
+          RELAY_ACCESS_KEY: ${{ secrets.RELAY_ACCESS_KEY }}
+        run: |
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          [ -n "$RELAY_ACCESS_KEY" ] || missing="$missing RELAY_ACCESS_KEY"
+          if [ -n "$missing" ]; then echo "::error::Secret yetishmayapti:$missing"; exit 1; fi
+          if ! printf '%s' "$RELAY_ACCESS_KEY" | grep -Eq '^[A-Za-z0-9_-]{43}$'; then
+            echo "::error::RELAY_ACCESS_KEY 43 ta belgi (harf, raqam, - va _) bo‘lishi kerak"; exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Deploy
+        run: |
+          # The rate-limit binding is optional; a free account without it still gets a working relay.
+          if ! npx wrangler deploy 2>&1 | tee deploy.log; then
+            echo "Deploy failed; trying again without the optional [[ratelimits]] block"
+            python3 - <<'PY'
+          import re
+          s = open("wrangler.toml").read()
+          s = re.sub(r"\n# New connections per source address.*", "\n", s, flags=re.S)
+          open("wrangler.toml", "w").write(s)
+          PY
+            npx wrangler deploy 2>&1 | tee deploy.log
+          fi
+
+      - name: Store the access key on the relay
+        env:
+          RELAY_ACCESS_KEY: ${{ secrets.RELAY_ACCESS_KEY }}
+        run: printf '%s' "$RELAY_ACCESS_KEY" | npx wrangler secret put ACCESS_KEY
+
+      - name: Check the relay answers
+        run: |
+          url=$(grep -Eo 'https://[a-zA-Z0-9.-]+\.workers\.dev' deploy.log | head -n1)
+          [ -n "$url" ] || { echo "::error::Relay manzili topilmadi"; exit 1; }
+          sleep 5
+          body=$(curl -fsS "$url/")
+          echo "$body"
+          [ "$body" = "Coucou link relay" ] || { echo "::error::Relay kutilgan javobni bermadi"; exit 1; }
+          wss="${url/https:/wss:}"
+          echo "## Relay tayyor" >> "$GITHUB_STEP_SUMMARY"
+          echo "Kompyuterdagi Coucou → Android telefon → Uydagi Wi-Fi’dan tashqarida → **Relay manzili**: \`$wss\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::Relay manzili: $wss"
